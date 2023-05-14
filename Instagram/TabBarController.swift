@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import FirebaseAuth
 
 class TabBarController: UITabBarController, UITabBarControllerDelegate{
 
@@ -29,6 +30,15 @@ class TabBarController: UITabBarController, UITabBarControllerDelegate{
             } else {
                 return true
             }
+        }
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        if Auth.auth().currentUser == nil {
+            let loginViewController = self.storyboard?.instantiateViewController(withIdentifier: "Login")
+            self.present(loginViewController!, animated: true, completion: nil)
         }
     }
     
