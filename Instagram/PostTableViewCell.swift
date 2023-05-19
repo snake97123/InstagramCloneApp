@@ -11,20 +11,21 @@ import FirebaseStorageUI
 class PostTableViewCell: UITableViewCell {
     
     
+    @IBOutlet weak var commentLabel: UILabel!
     @IBOutlet weak var captionLabel: UILabel!
     @IBOutlet weak var dateLabel: UILabel!
     @IBOutlet weak var likeLabel: UILabel!
     @IBOutlet weak var likeButton: UIButton!
     @IBOutlet weak var postImageView: UIImageView!
+    @IBOutlet weak var commentButton: UIButton!
     
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code
     }
-
+    
     override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
-
         // Configure the view for the selected state
     }
     
@@ -45,8 +46,11 @@ class PostTableViewCell: UITableViewCell {
             self.likeButton.setImage(buttonImage, for: .normal)
         } else {
             let buttonImage = UIImage(named: "like_none")
-            self.likeButton.setImage(buttonImage, for: .normal)                           
+            self.likeButton.setImage(buttonImage, for: .normal)
         }
+        
+        let commentString = postData.comments.map { "\($0.username): \($0.text)"}.joined(separator: "\n")
+        commentLabel.text = "コメント一覧" + "\n" + commentString
     }
-    
+
 }

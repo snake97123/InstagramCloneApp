@@ -17,6 +17,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     
     var listener: ListenerRegistration?
     
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -25,8 +26,6 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         
         let nib = UINib(nibName: "PostTableViewCell", bundle: nil)
         tableView.register(nib, forCellReuseIdentifier: "Cell")
-
-        // Do any additional setup after loading the view.
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -43,12 +42,26 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
                 
                 self.postArray = querySnapshot!.documents.map { document in
                     let postData = PostData(document: document)
+                    document.reference.collection("comments").order(by: "timestamp").addSnapshotListener { (snapshot, error) in
+                        if let error = error {
+                            print("DEBUG_PRINT: commentの取得が失敗しました。 \(error)")
+                        } else {
+                            postData.comments = snapshot!.documents.compactMap { document in
+                                let commentData = document.data()
+                                guard let username = commentData["username"] as? String,
+                                      let text = commentData["text"] as? String else { return nil }
+                                
+                                return Comment(username: username, text: text)
+                            }
+                            DispatchQueue.main.async {
+                                self.tableView.reloadData()
+                            }
+                        }
+                    }
                     print("DEBUG_PRINT: \(postData)")
                     return postData
                 }
-                self.tableView.reloadData()
             }
-            
         }
     }
     
@@ -67,6 +80,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         cell.setPostData(postArray[indexPath.row])
         
         cell.likeButton.addTarget(self, action: #selector(handleButton(_:forEvent:)), for: .touchUpInside)
+        cell.commentButton.addTarget(self, action: #selector(didTapCommentButton(_: forEvent: )), for: .touchUpInside)
         
         return cell
     }
@@ -91,6 +105,56 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
             postRef.updateData(["likes": updateValue])
         }
     }
+    
+    @objc func didTapCommentButton(_ sendar: UIButton, forEvent event: UIEvent) {
+        let alertController = UIAlertController(title: "コメント", message: "コメントを入力してください", preferredStyle: .alert)
+        alertController.addTextField { textField in
+            textField.placeholder = "コメント"
+        }
+        
+        let submitAction = UIAlertAction(title: "送信", style: .default) { _ in
+            guard let text = alertController.textFields?.first?.text, !text.isEmpty else {
+                return
+            }
+            let touch = event.allTouches?.first
+            let point = touch!.location(in: self.tableView)
+            let indexPath = self.tableView.indexPathForRow(at: point)
+            let postData = self.postArray[indexPath!.row]
+            let postId = postData.id
+            let username = Auth.auth().currentUser?.displayName
+            self.saveComment(postId: postId, username: username!, text: text)
+            
+        }
+        let cancelAction = UIAlertAction(title: "キャンセル", style: .cancel)
+        
+        alertController.addAction(submitAction)
+        alertController.addAction(cancelAction)
+        
+        self.present(alertController, animated: true)
+    }
+    
+    func saveComment(postId: String, username: String, text: String) {
+        let db = Firestore.firestore()
+        
+        let commentData: [String: Any] = [
+            "username": username,
+            "text": text,
+            "timestamp": FieldValue.serverTimestamp()
+        ]
+        
+        db.collection("posts").document(postId).collection("comments").addDocument(data: commentData) { error in
+            if let error = error {
+                print("DEBUG_ERROR: error = \(error)" )
+            } else {
+                print("コメントの投稿に成功しました。")
+            }
+        }
+    }
+    
+
+    
+    
+    
 
     /*
     // MARK: - Navigation
